@@ -1,39 +1,79 @@
 import * as cdk from '@aws-cdk/core';
 import * as ec2 from '@aws-cdk/aws-ec2';
+import { CfnParameter } from '@aws-cdk/core';
 
 export interface VPCStackProps extends cdk.StackProps {
-  vpcProps : ec2.CfnVPCProps;
+  vpcProps : ec2.CfnVPCProps,
+  pubSubnets? : ec2.SubnetConfiguration[],
+  priSubnets? : ec2.SubnetConfiguration[],
+  isolateSubnets? : ec2.SubnetConfiguration[]
 }
 
 export class NetworkStack extends cdk.Stack {
+
+  readonly pubSubnets? : ec2.SubnetConfiguration[];
+
   constructor(scope: cdk.Construct, id: string, props: VPCStackProps) {
     super(scope, id, props);
 
+    this.pubSubnets = props.pubSubnets;
+
+    const prefix = new CfnParameter(this,"prefix",{
+      description: 'An environment name that is prefixed to resource names',
+      type: 'String',
+      default: 'dev',
+      allowedValues: ['dev','stage','prod']
+    });
+
+    const vpcCIDR = new CfnParameter(this,"vpcCIDR",{
+      description: "Please enter the IP range (CIDR notation) for this VPC",
+      type: 'String',
+      default: '10.1.0.0/16',
+      allowedValues: ['10.1.0.0./16','10.192.0.0/16','192.168.0.0/16']
+    });
+
+    const pubSubCIDR1 = new CfnParameter(this,"pubSubCIDR1",{
+      description: "Please enter the IP range (CIDR notation) for the public subnet in the first Availability Zone",
+      type: 'String',
+      default: '10.1.10.0/24',
+      allowedValues: ['10.1.10.0./16','10.192.10.0/16','192.168.10.0/16']
+    });
+    const pubSubCIDR2 = new CfnParameter(this,"pubSubCIDR2",{
+      description: "Please enter the IP range (CIDR notation) for the public subnet in the second Availability Zone",
+      type: 'String',
+      default: '10.1.11.0/24',
+      allowedValues: ['10.1.11.0./24','10.192.11.0/24','192.168.11.0/24']
+    });
+    const priSubCIDR1 = new CfnParameter(this,"priSubCIDR1",{
+      description: "Please enter the IP range (CIDR notation) for the private subnet in the first Availability Zone",
+      type: 'String',
+      default: '10.1.20.0/24',
+      allowedValues: ['10.1.20.0./16','10.192.20.0/16','192.168.20.0/16']
+    });
+    const priSubCIDR2 = new CfnParameter(this,"priSubCIDR2",{
+      description: "Please enter the IP range (CIDR notation) for the private subnet in the second Availability Zone",
+      type: 'String',
+      default: '10.1.21.0/24',
+      allowedValues: ['10.1.21.0./24','10.192.21.0/24','192.168.21.0/24']
+    });
+
     // The code that defines your stack goes here
     const vpc = new ec2.CfnVPC(this,id,{
-      cidrBlock: props.vpcProps.cidrBlock,
+      cidrBlock: vpcCIDR.valueAsString,
       enableDnsHostnames: true,
       enableDnsSupport: true,
       tags:[
-        {"key": "Name","value":id}
+        {"key": "Name","value": buildName('VPC')}
       ]
     });
 
     // create VPC IntergateGateway
     const igw = this.createIGW(this,vpc);
-    
-    // first createSubnets
-    // input value, desiredLayerCnts, desiredAzCnt, region, cidrMask
-    const subnetGroup = new SubnetGroup(this,vpc,{
-      desiredLayers: 2,
-      desiredAzs: 2,
-      region: 'ap-northeast-2',
-      privateEnabled: true,
-      cidrMask: 24
-    });
 
-    subnetGroup.createSubnets(this);
-  
+
+    function buildName(s:string) {
+      return `${prefix}/${s}`;
+    }
       
   }
 
@@ -53,35 +93,6 @@ export class NetworkStack extends cdk.Stack {
     return igw;
   }
 
+
 }
 
-export interface SubnetGroupProps {
-  desiredLayers: number,
-  desiredAzs: number,
-  region: string,
-  privateEnabled: boolean,
-  cidrMask: number
-}
-
-export class SubnetGroup {
-  readonly _privateSubnets: string[];
-  readonly _publicSubnets: string[];
-  readonly _cidrMask: number ;
-  readonly _desiredLayers: number ;
-  readonly _desiredAzs: number ;
-  readonly _region: string ;
-  readonly _reservedAzs: number = 5;
-  readonly _reservedLayers: number = 3;
-
-  constructor(scope: cdk.Construct,vpc: ec2.CfnVPC, props: SubnetGroupProps) {
-
-  }
-
-  private get
-
-  public createSubnets(scope: cdk.Construct) {
-
-    for(let i=1; i<= this._desiredLayers;i++)
-
-  }
-}
