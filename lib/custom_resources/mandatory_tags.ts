@@ -40,12 +40,14 @@ export class customTags extends cdk.Construct implements cdk.ITaggable {
           }); */
           
 
-          Tag.add(this,"CreateAt", new Date().toUTCString());
 
     }
 
     prepare() {
 
+        Tag.add(this,"costCenter", '73050');
+        Tag.add(this,"Environment", 'DEV');
+        Tag.add(this,"CreateAt", new Date().toUTCString());
         
 
         let myTags = this.tags.renderTags().map((tag: any) => {
