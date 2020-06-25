@@ -1,7 +1,7 @@
 import * as cdk from '@aws-cdk/core';
 import * as ec2 from '@aws-cdk/aws-ec2';
-import { CfnParameter, CfnOutput, Token } from '@aws-cdk/core';
-import { SubnetProps } from '@aws-cdk/aws-ec2';
+import { CfnParameter, CfnOutput, Token, TagManager } from '@aws-cdk/core';
+import { SubnetProps, SubnetType, CfnNatGateway, CfnInternetGateway } from '@aws-cdk/aws-ec2';
 
 export interface customSubnetProps extends SubnetProps {
   subnetType: ec2.SubnetType,
@@ -16,6 +16,8 @@ export interface VPCStackProps extends cdk.StackProps {
 export class NetworkStack extends cdk.Stack {
 
   readonly pubSubnets? : ec2.SubnetConfiguration[];
+  readonly natgw : CfnNatGateway;
+  readonly igw : CfnInternetGateway;
 
   constructor(scope: cdk.Construct, id: string, props: VPCStackProps) {
     super(scope, id, props);
@@ -91,36 +93,131 @@ export class NetworkStack extends cdk.Stack {
       ]
     });
 
+    
+
+    new CfnOutput(this,"vpcid",{
+      value: vpc.ref
+    });
+    // create VPC IntergateGateway
+    this.igw = this.createIGW(this,vpc);
+
     if(props.subnetProps != null && typeof props.subnetProps != "undefined") {
       for(let subProps of props.subnetProps) {
 
         // Subnet Naming Rule 
         // SNET-{ServiceId}-{Stage}-{SubnetType}-{AZIndex}
         var _subId = `SNET-${subProps.subnetType}-${subProps.availabilityZone.substr(-1,1)}`;
-        new ec2.CfnSubnet(this,_subId.toUpperCase(),{
+        var _subnetId = new ec2.CfnSubnet(this,_subId.toUpperCase(),{
           vpcId: vpc.ref,
           cidrBlock : subProps.cidrBlock,
           availabilityZone : subProps.availabilityZone,
           mapPublicIpOnLaunch: subProps.mapPublicIpOnLaunch,
           tags: [
-            {"key": "Name","value": buildName(_subId.toUpperCase())}
+            {"key": "Name","value": buildSubnetTagName(subProps,"SNET")}
           ]
         });
 
+        // create EIP for NAT Gateway
+        if(subProps.subnetType == SubnetType.PUBLIC) {
+
+          var _subId = `EIP-${subProps.availabilityZone}-${subProps.availabilityZone.substr(-1,1)}`;
+
+          var eip = new ec2.CfnEIP(this, _subId,{
+            domain: "vpc",
+            tags:[{ "key": "Name", "value": buildSubnetTagName(subProps,"EIP")}]
+          });
+
+          eip.addDependsOn(this.igw);
+
+          // create NAT Gateway
+          this.natgw = new ec2.CfnNatGateway(this,`NAT+${subProps.subnetType}+${subProps.availabilityZone.substr(-1,1)}`,{
+            allocationId: eip.attrAllocationId,
+            subnetId: _subnetId.ref,
+            tags: [
+              {"key": "Name","value": buildSubnetTagName(subProps,"NATGW")} 
+            ]
+          });
+
+          // RouteTable of Public Subnet
+          var _publicRT = new ec2.CfnRouteTable(this,`RT+${subProps.subnetType}+${subProps.availabilityZone.substr(-1,1)}`,{
+            vpcId: vpc.ref,
+            tags:[
+              {"key": "Name","value": buildSubnetTagName(subProps,"RT")}
+            ] 
+          });
+
+          // AssociateRouteTableToSubnet
+          new ec2.CfnSubnetRouteTableAssociation(this, buildSubnetTagName(subProps,"RT_ASSOCIATE"),{
+            routeTableId: _publicRT.ref,
+            subnetId: _subnetId.ref
+          });
+
+          // Add Route All to NAT at Public RouteTable
+          new ec2.CfnRoute(this, buildSubnetTagName(subProps,"ROUTE"),{
+            routeTableId: _publicRT.ref,
+            destinationCidrBlock:"0.0.0.0/0",
+            natGatewayId: this.igw.ref
+          });
+
+        } else if(subProps.subnetType == SubnetType.PRIVATE ) {
+
+          // RouteTable of Private Subnet
+          var _privateRT = new ec2.CfnRouteTable(this,`RT+${subProps.subnetType}+${subProps.availabilityZone.substr(-1,1)}`,{
+            vpcId: vpc.ref,
+            tags:[
+              {"key": "Name","value": buildSubnetTagName(subProps,"RT")}
+            ] 
+          });
+
+          // AssociateRouteTableToSubnet
+          new ec2.CfnSubnetRouteTableAssociation(this, buildSubnetTagName(subProps,"RT_ASSOCIATE"),{
+            routeTableId: _privateRT.ref,
+            subnetId: _subnetId.ref
+          });
+
+          // Add Route All to NAT at Private RouteTable
+          new ec2.CfnRoute(this, buildSubnetTagName(subProps,"ROUTE"),{
+            routeTableId: _privateRT.ref,
+            destinationCidrBlock:"0.0.0.0/0",
+            natGatewayId: this.natgw.ref
+          });
+
+        } else if(subProps.subnetType == SubnetType.ISOLATED) {
+          // RouteTable of Private Subnet
+          /* var _isolateRT = new ec2.CfnRouteTable(this,`RT+${subProps.subnetType}+${subProps.availabilityZone.substr(-1,1)}`,{
+            vpcId: vpc.ref,
+            tags:[
+              {"key": "Name","value": buildSubnetTagName(subProps,"RT")}
+            ] 
+          });
+
+          // AssociateRouteTableToSubnet
+          new ec2.CfnSubnetRouteTableAssociation(this, buildSubnetTagName(subProps,"RT_ASSOCIATE"),{
+            routeTableId: _isolateRT.ref,
+            subnetId: _subnetId.ref
+          });
+ */
+        } else {
+
+
+        }
+
       }
     }
-
-    new CfnOutput(this,"vpcid",{
-      value: vpc.ref
-    });
-    // create VPC IntergateGateway
-    const igw = this.createIGW(this,vpc);
-
     
+
+    function buildSubnetTagName(props: customSubnetProps, name:string) {
+
+      // {ConstructNmae}-{ServiceId}-{Stage}-{SubnetType}-{AZIndex}
+      var result: string;
+      result = `${prefix.valueAsString}/${name}-${props.subnetType}-${props.availabilityZone.substr(-1,1)}`
+      return result.toUpperCase()
+    }
 
 
     function buildName(s:string) {
-      return `${prefix.valueAsString}/${s}`;
+      var result = `${prefix.valueAsString}/${s}`;
+      return result.toUpperCase();
     }
       
   }

@@ -49,10 +49,10 @@ export class customTags extends cdk.Construct implements cdk.ITaggable {
     prepare() {
 
 
-        let myTags = this.tags.renderTags().map((tag: any) => {
+        /* let myTags = this.tags.renderTags().map((tag: any) => {
             console.log( '"' + tag.Key + ":" + tag.Value + '"' );
         });
-
+ */
 
     }
 
