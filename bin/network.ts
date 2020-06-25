@@ -43,10 +43,10 @@ new NetworkStack(app, 'NetworkStack',{
     ]
 });
 
+Tag.add(app,"costCenter", '73050');
+Tag.add(app,"Environment", 'DEV');
+Tag.add(app,"CreateAt", new Date().toUTCString());
+
 new customTags(app,"cunstomTags",{});
 
-      
 
-
-
-Tag.add(app,"test","value");
