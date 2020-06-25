@@ -1,12 +1,15 @@
 import * as cdk from '@aws-cdk/core';
 import * as ec2 from '@aws-cdk/aws-ec2';
-import { CfnParameter } from '@aws-cdk/core';
+import { CfnParameter, CfnOutput, Token } from '@aws-cdk/core';
+import { SubnetProps } from '@aws-cdk/aws-ec2';
+
+export interface customSubnetProps extends SubnetProps {
+  subnetType: ec2.SubnetType
+}
 
 export interface VPCStackProps extends cdk.StackProps {
   vpcProps : ec2.CfnVPCProps,
-  pubSubnets? : ec2.SubnetConfiguration[],
-  priSubnets? : ec2.SubnetConfiguration[],
-  isolateSubnets? : ec2.SubnetConfiguration[]
+  subnetProps? : customSubnetProps[]
 }
 
 export class NetworkStack extends cdk.Stack {
@@ -15,8 +18,6 @@ export class NetworkStack extends cdk.Stack {
 
   constructor(scope: cdk.Construct, id: string, props: VPCStackProps) {
     super(scope, id, props);
-
-    this.pubSubnets = props.pubSubnets;
 
     const prefix = new CfnParameter(this,"prefix",{
       description: 'An environment name that is prefixed to resource names',
@@ -29,33 +30,57 @@ export class NetworkStack extends cdk.Stack {
       description: "Please enter the IP range (CIDR notation) for this VPC",
       type: 'String',
       default: '10.1.0.0/16',
-      allowedValues: ['10.1.0.0./16','10.192.0.0/16','192.168.0.0/16']
+      allowedValues: ['10.1.0.0/16','10.192.0.0/16','192.168.0.0/16']
     });
 
     const pubSubCIDR1 = new CfnParameter(this,"pubSubCIDR1",{
       description: "Please enter the IP range (CIDR notation) for the public subnet in the first Availability Zone",
       type: 'String',
       default: '10.1.10.0/24',
-      allowedValues: ['10.1.10.0./16','10.192.10.0/16','192.168.10.0/16']
+      allowedValues: ['10.1.10.0/24','10.192.10.0/24','192.168.10.0/24']
     });
     const pubSubCIDR2 = new CfnParameter(this,"pubSubCIDR2",{
       description: "Please enter the IP range (CIDR notation) for the public subnet in the second Availability Zone",
       type: 'String',
       default: '10.1.11.0/24',
-      allowedValues: ['10.1.11.0./24','10.192.11.0/24','192.168.11.0/24']
+      allowedValues: ['10.1.11.0/24','10.192.11.0/24','192.168.11.0/24']
     });
     const priSubCIDR1 = new CfnParameter(this,"priSubCIDR1",{
       description: "Please enter the IP range (CIDR notation) for the private subnet in the first Availability Zone",
       type: 'String',
       default: '10.1.20.0/24',
-      allowedValues: ['10.1.20.0./16','10.192.20.0/16','192.168.20.0/16']
+      allowedValues: ['10.1.20.0/24','10.192.20.0/24','192.168.20.0/24']
     });
     const priSubCIDR2 = new CfnParameter(this,"priSubCIDR2",{
       description: "Please enter the IP range (CIDR notation) for the private subnet in the second Availability Zone",
       type: 'String',
       default: '10.1.21.0/24',
-      allowedValues: ['10.1.21.0./24','10.192.21.0/24','192.168.21.0/24']
+      allowedValues: ['10.1.21.0/24','10.192.21.0/24','192.168.21.0/24']
     });
+
+    const tierCnt : number = 2;
+
+    let tierIdx = 1;
+
+    const arrAZ = this.node.tryGetContext('AZs');
+
+    for( tierIdx = 1; tierIdx <= tierCnt; tierIdx++) {
+      for(let az of arrAZ) {
+        let subId = `sub-${tierIdx}-${az}`;
+        console.log(subId);
+        new CfnParameter(this,subId,{
+        description: `Please enter the IP range (CIDR notation) for the private subnet in ${az}`,
+        type: 'String',
+        default: '10.1.21.0/24',
+        allowedValues: ['10.1.21.0/24','10.192.21.0/24','192.168.21.0/24']
+    });
+
+      }
+    }
+
+    const strList = new CfnParameter(this,"strList",{
+      type: 'CommaDelimitedList'
+    })
 
     // The code that defines your stack goes here
     const vpc = new ec2.CfnVPC(this,id,{
@@ -67,12 +92,36 @@ export class NetworkStack extends cdk.Stack {
       ]
     });
 
+    if(props.subnetProps != null && typeof props.subnetProps != "undefined") {
+      for(let subProps of props.subnetProps) {
+
+        // Subnet Naming Rule 
+        // SNET-{ServiceId}-{Stage}-{SubnetType}-{AZIndex}
+        var _subId = `SNET-${subProps.subnetType}-${subProps.availabilityZone.substr(-1,1)}`;
+        new ec2.CfnSubnet(this,_subId.toUpperCase(),{
+          vpcId: vpc.ref,
+          cidrBlock : subProps.cidrBlock,
+          availabilityZone : subProps.availabilityZone,
+          mapPublicIpOnLaunch: subProps.mapPublicIpOnLaunch,
+          tags: [
+            {"key": "Name","value": buildName(_subId.toUpperCase())}
+          ]
+        });
+
+      }
+    }
+
+    new CfnOutput(this,"vpcid",{
+      value: vpc.ref
+    });
     // create VPC IntergateGateway
     const igw = this.createIGW(this,vpc);
 
+    
+
 
     function buildName(s:string) {
-      return `${prefix}/${s}`;
+      return `${prefix.valueAsString}/${s}`;
     }
       
   }
@@ -93,6 +142,10 @@ export class NetworkStack extends cdk.Stack {
     return igw;
   }
 
+  private createSubnets(scope: cdk.Construct, vpc: ec2.CfnVPC) {
+
+  }
 
 }
+
 
