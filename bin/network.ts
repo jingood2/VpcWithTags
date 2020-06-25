@@ -3,6 +3,8 @@ import 'source-map-support/register';
 import * as cdk from '@aws-cdk/core';
 import { NetworkStack } from '../lib/network-stack';
 import { SubnetType } from '@aws-cdk/aws-ec2';
+import { Tag, CfnParameter } from '@aws-cdk/core';
+import { customTags } from '../lib/custom_resources/mandatory_tags';
 
 const app = new cdk.App();
 new NetworkStack(app, 'NetworkStack',{
@@ -40,3 +42,11 @@ new NetworkStack(app, 'NetworkStack',{
         },
     ]
 });
+
+new customTags(app,"cunstomTags",{});
+
+      
+
+
+
+Tag.add(app,"test","value");

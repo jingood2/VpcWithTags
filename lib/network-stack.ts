@@ -4,7 +4,8 @@ import { CfnParameter, CfnOutput, Token } from '@aws-cdk/core';
 import { SubnetProps } from '@aws-cdk/aws-ec2';
 
 export interface customSubnetProps extends SubnetProps {
-  subnetType: ec2.SubnetType
+  subnetType: ec2.SubnetType,
+  serviceCode?: String
 }
 
 export interface VPCStackProps extends cdk.StackProps {
@@ -58,30 +59,28 @@ export class NetworkStack extends cdk.Stack {
       allowedValues: ['10.1.21.0/24','10.192.21.0/24','192.168.21.0/24']
     });
 
+   
+
     const tierCnt : number = 2;
 
     let tierIdx = 1;
 
     const arrAZ = this.node.tryGetContext('AZs');
 
-    for( tierIdx = 1; tierIdx <= tierCnt; tierIdx++) {
+/*     for( tierIdx = 1; tierIdx <= tierCnt; tierIdx++) {
       for(let az of arrAZ) {
         let subId = `sub-${tierIdx}-${az}`;
         console.log(subId);
         new CfnParameter(this,subId,{
-        description: `Please enter the IP range (CIDR notation) for the private subnet in ${az}`,
-        type: 'String',
-        default: '10.1.21.0/24',
-        allowedValues: ['10.1.21.0/24','10.192.21.0/24','192.168.21.0/24']
-    });
+          description: `Please enter the IP range (CIDR notation) for the private subnet in ${az}`,
+          type: 'String',
+          default: '10.1.21.0/24',
+          allowedValues: ['10.1.21.0/24','10.192.21.0/24','192.168.21.0/24']
+        });
 
       }
     }
-
-    const strList = new CfnParameter(this,"strList",{
-      type: 'CommaDelimitedList'
-    })
-
+ */
     // The code that defines your stack goes here
     const vpc = new ec2.CfnVPC(this,id,{
       cidrBlock: vpcCIDR.valueAsString,
