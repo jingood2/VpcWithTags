@@ -1,70 +1,85 @@
 #!/usr/bin/env node
 import 'source-map-support/register';
 import * as cdk from '@aws-cdk/core';
-import { NetworkStack } from '../lib/network-stack';
-import { SubnetType } from '@aws-cdk/aws-ec2';
+import { VpcStack } from '../lib/vpc-stack';
+import { SubnetType, CfnVPCEndpoint } from '@aws-cdk/aws-ec2';
 import { Tag, CfnParameter } from '@aws-cdk/core';
 import { customTags } from '../lib/custom_resources/mandatory_tags';
+import { VpcEndpointStack } from '../lib/vpc-endpoint-stack';
 
 const app = new cdk.App();
-new NetworkStack(app, 'NetworkStack',{
-    env: {
-        account: '533616270150', region: 'ap-northeast-2'
-    },
-    vpcProps: {
-        cidrBlock: '10.1.0.0/16'
-    },
-    subnetProps: [
-        {
-            availabilityZone: "ap-northeast-2a",
-            cidrBlock: "10.1.20.0/24",
-            vpcId: "",
-            mapPublicIpOnLaunch: true,
-            subnetType: SubnetType.PUBLIC
-        },
-        {
-            availabilityZone: "ap-northeast-2c",
-            cidrBlock: "10.1.21.0/24",
-            vpcId: "",
-            mapPublicIpOnLaunch: true,
-            subnetType: SubnetType.PUBLIC
-        },
-        {
-            availabilityZone: "ap-northeast-2a",
-            cidrBlock: "10.1.10.0/24",
-            vpcId: "",
-            mapPublicIpOnLaunch: false,
-            subnetType: SubnetType.PRIVATE
-        },
-        {
-            availabilityZone: "ap-northeast-2c",
-            cidrBlock: "10.1.11.0/24",
-            vpcId: "",
-            mapPublicIpOnLaunch: false,
-            subnetType: SubnetType.PRIVATE
-        },
-        {
-            availabilityZone: "ap-northeast-2a",
-            cidrBlock: "10.1.100.0/24",
-            vpcId: "",
-            mapPublicIpOnLaunch: false,
-            subnetType: SubnetType.ISOLATED
-        },
-        {
-            availabilityZone: "ap-northeast-2c",
-            cidrBlock: "10.1.101.0/24",
-            vpcId: "",
-            mapPublicIpOnLaunch: false,
-            subnetType: SubnetType.ISOLATED
-        },
- 
-    ]
-});
+const vpc = new VpcStack(app, 'VpcStack',{
+            env: {
+                account: '533616270150', region: 'ap-northeast-2'
+            },
+            vpcProps: {
+                cidrBlock: '10.1.0.0/16'
+            },
+            subnetProps: [
+                {
+                    availabilityZone: "ap-northeast-2a",
+                    cidrBlock: "10.1.20.0/24",
+                    vpcId: "",
+                    mapPublicIpOnLaunch: true,
+                    subnetType: SubnetType.PUBLIC
+                },
+                {
+                    availabilityZone: "ap-northeast-2c",
+                    cidrBlock: "10.1.21.0/24",
+                    vpcId: "",
+                    mapPublicIpOnLaunch: true,
+                    subnetType: SubnetType.PUBLIC
+                },
+                {
+                    availabilityZone: "ap-northeast-2a",
+                    cidrBlock: "10.1.10.0/24",
+                    vpcId: "",
+                    mapPublicIpOnLaunch: false,
+                    subnetType: SubnetType.PRIVATE
+                },
+                {
+                    availabilityZone: "ap-northeast-2c",
+                    cidrBlock: "10.1.11.0/24",
+                    vpcId: "",
+                    mapPublicIpOnLaunch: false,
+                    subnetType: SubnetType.PRIVATE
+                },
+                {
+                    availabilityZone: "ap-northeast-2a",
+                    cidrBlock: "10.1.100.0/24",
+                    vpcId: "",
+                    mapPublicIpOnLaunch: false,
+                    subnetType: SubnetType.ISOLATED
+                },
+                {
+                    availabilityZone: "ap-northeast-2c",
+                    cidrBlock: "10.1.101.0/24",
+                    vpcId: "",
+                    mapPublicIpOnLaunch: false,
+                    subnetType: SubnetType.ISOLATED
+                },
+        
+            ]
+        });
+
+// add EndPoint 
+new VpcEndpointStack(app,"VpcEndpointStack",{ 
+        vpc: vpc.vpc, 
+        vpcEndpoints:[
+            { serviceName: "",
+              vpcId: vpc.vpc.ref,
+              policyDocument: ""
+            }
+        ]
+    });
+// add VPN 
+
+
+// add Trangit Gateway
 
 Tag.add(app,"costCenter", '73050');
 Tag.add(app,"Environment", 'DEV');
 Tag.add(app,"CreateAt", new Date().toUTCString());
 
-new customTags(app,"cunstomTags",{});
 
 
