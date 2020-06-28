@@ -1,6 +1,6 @@
 import * as cdk from '@aws-cdk/core';
 import * as ec2 from '@aws-cdk/aws-ec2';
-import { CfnParameter, CfnOutput, Token, TagManager } from '@aws-cdk/core';
+import { CfnParameter, CfnOutput, Token, TagManager, Fn } from '@aws-cdk/core';
 import { SubnetProps, SubnetType, CfnNatGateway, CfnInternetGateway } from '@aws-cdk/aws-ec2';
 
 export interface customSubnetProps extends SubnetProps {
@@ -16,8 +16,8 @@ export interface VPCStackProps extends cdk.StackProps {
 export class NetworkStack extends cdk.Stack {
 
   readonly pubSubnets? : ec2.SubnetConfiguration[];
-  readonly natgw : CfnNatGateway;
-  readonly igw : CfnInternetGateway;
+  natgw : CfnNatGateway;
+  igw : CfnInternetGateway;
 
   constructor(scope: cdk.Construct, id: string, props: VPCStackProps) {
     super(scope, id, props);
@@ -36,7 +36,7 @@ export class NetworkStack extends cdk.Stack {
       allowedValues: ['10.1.0.0/16','10.192.0.0/16','192.168.0.0/16']
     });
 
-    const pubSubCIDR1 = new CfnParameter(this,"pubSubCIDR1",{
+   /*  const pubSubCIDR1 = new CfnParameter(this,"pubSubCIDR1",{
       description: "Please enter the IP range (CIDR notation) for the public subnet in the first Availability Zone",
       type: 'String',
       default: '10.1.10.0/24',
@@ -60,11 +60,9 @@ export class NetworkStack extends cdk.Stack {
       default: '10.1.21.0/24',
       allowedValues: ['10.1.21.0/24','10.192.21.0/24','192.168.21.0/24']
     });
-
+ */
    
-
     const tierCnt : number = 2;
-
     let tierIdx = 1;
 
     const arrAZ = this.node.tryGetContext('AZs');
@@ -130,7 +128,7 @@ export class NetworkStack extends cdk.Stack {
           eip.addDependsOn(this.igw);
 
           // create NAT Gateway
-          this.natgw = new ec2.CfnNatGateway(this,`NAT+${subProps.subnetType}+${subProps.availabilityZone.substr(-1,1)}`,{
+          this.natgw = new ec2.CfnNatGateway(this,`NAT-${subProps.subnetType}-${subProps.availabilityZone.substr(-1,1)}`,{
             allocationId: eip.attrAllocationId,
             subnetId: _subnetId.ref,
             tags: [
@@ -139,7 +137,7 @@ export class NetworkStack extends cdk.Stack {
           });
 
           // RouteTable of Public Subnet
-          var _publicRT = new ec2.CfnRouteTable(this,`RT+${subProps.subnetType}+${subProps.availabilityZone.substr(-1,1)}`,{
+          var _publicRT = new ec2.CfnRouteTable(this,`RT-${subProps.subnetType}-${subProps.availabilityZone.substr(-1,1)}`,{
             vpcId: vpc.ref,
             tags:[
               {"key": "Name","value": buildSubnetTagName(subProps,"RT")}
@@ -147,22 +145,24 @@ export class NetworkStack extends cdk.Stack {
           });
 
           // AssociateRouteTableToSubnet
-          new ec2.CfnSubnetRouteTableAssociation(this, buildSubnetTagName(subProps,"RT_ASSOCIATE"),{
+          new ec2.CfnSubnetRouteTableAssociation(this, `RT_ASSOCIATE-${subProps.subnetType}-${subProps.availabilityZone.substr(-1,1)}`,{
             routeTableId: _publicRT.ref,
             subnetId: _subnetId.ref
           });
 
           // Add Route All to NAT at Public RouteTable
-          new ec2.CfnRoute(this, buildSubnetTagName(subProps,"ROUTE"),{
+          new ec2.CfnRoute(this, `ROUTE-${subProps.subnetType}-${subProps.availabilityZone.substr(-1,1)}`,{
             routeTableId: _publicRT.ref,
             destinationCidrBlock:"0.0.0.0/0",
-            natGatewayId: this.igw.ref
+            gatewayId: this.igw.ref
           });
 
-        } else if(subProps.subnetType == SubnetType.PRIVATE ) {
+        }
+        
+        else if(subProps.subnetType == SubnetType.PRIVATE ) {
 
           // RouteTable of Private Subnet
-          var _privateRT = new ec2.CfnRouteTable(this,`RT+${subProps.subnetType}+${subProps.availabilityZone.substr(-1,1)}`,{
+          var _privateRT = new ec2.CfnRouteTable(this,`RT-${subProps.subnetType}-${subProps.availabilityZone.substr(-1,1)}`,{
             vpcId: vpc.ref,
             tags:[
               {"key": "Name","value": buildSubnetTagName(subProps,"RT")}
@@ -170,19 +170,21 @@ export class NetworkStack extends cdk.Stack {
           });
 
           // AssociateRouteTableToSubnet
-          new ec2.CfnSubnetRouteTableAssociation(this, buildSubnetTagName(subProps,"RT_ASSOCIATE"),{
+          new ec2.CfnSubnetRouteTableAssociation(this, `RT_ASSOCIATE-${subProps.subnetType}-${subProps.availabilityZone.substr(-1,1)}`,{
             routeTableId: _privateRT.ref,
             subnetId: _subnetId.ref
           });
 
           // Add Route All to NAT at Private RouteTable
-          new ec2.CfnRoute(this, buildSubnetTagName(subProps,"ROUTE"),{
+          var _privateRoute = new ec2.CfnRoute(this, `ROUTE-${subProps.subnetType}-${subProps.availabilityZone.substr(-1,1)}`,{
             routeTableId: _privateRT.ref,
             destinationCidrBlock:"0.0.0.0/0",
             natGatewayId: this.natgw.ref
           });
 
-        } else if(subProps.subnetType == SubnetType.ISOLATED) {
+        }
+        else {
+          console.log(`SubnetType is ${subProps.subnetType} !!`);
           // RouteTable of Private Subnet
           /* var _isolateRT = new ec2.CfnRouteTable(this,`RT+${subProps.subnetType}+${subProps.availabilityZone.substr(-1,1)}`,{
             vpcId: vpc.ref,
@@ -197,26 +199,21 @@ export class NetworkStack extends cdk.Stack {
             subnetId: _subnetId.ref
           });
  */
-        } else {
-
-
-        }
-
+        } 
       }
     }
-    
 
     function buildSubnetTagName(props: customSubnetProps, name:string) {
 
       // {ConstructNmae}-{ServiceId}-{Stage}-{SubnetType}-{AZIndex}
       var result: string;
-      result = `${prefix.valueAsString}/${name}-${props.subnetType}-${props.availabilityZone.substr(-1,1)}`
+      result = `${name}-${props.subnetType}-${props.availabilityZone.substr(-1,1)}`
       return result.toUpperCase()
     }
 
 
     function buildName(s:string) {
-      var result = `${prefix.valueAsString}/${s}`;
+      var result = `${s}`;
       return result.toUpperCase();
     }
       

@@ -8,10 +8,27 @@ import { customTags } from '../lib/custom_resources/mandatory_tags';
 
 const app = new cdk.App();
 new NetworkStack(app, 'NetworkStack',{
+    env: {
+        account: '533616270150', region: 'ap-northeast-2'
+    },
     vpcProps: {
         cidrBlock: '10.1.0.0/16'
     },
     subnetProps: [
+        {
+            availabilityZone: "ap-northeast-2a",
+            cidrBlock: "10.1.20.0/24",
+            vpcId: "",
+            mapPublicIpOnLaunch: true,
+            subnetType: SubnetType.PUBLIC
+        },
+        {
+            availabilityZone: "ap-northeast-2c",
+            cidrBlock: "10.1.21.0/24",
+            vpcId: "",
+            mapPublicIpOnLaunch: true,
+            subnetType: SubnetType.PUBLIC
+        },
         {
             availabilityZone: "ap-northeast-2a",
             cidrBlock: "10.1.10.0/24",
@@ -28,18 +45,19 @@ new NetworkStack(app, 'NetworkStack',{
         },
         {
             availabilityZone: "ap-northeast-2a",
-            cidrBlock: "10.1.20.0/24",
+            cidrBlock: "10.1.100.0/24",
             vpcId: "",
             mapPublicIpOnLaunch: false,
-            subnetType: SubnetType.PUBLIC
+            subnetType: SubnetType.ISOLATED
         },
         {
             availabilityZone: "ap-northeast-2c",
-            cidrBlock: "10.1.21.0/24",
+            cidrBlock: "10.1.101.0/24",
             vpcId: "",
             mapPublicIpOnLaunch: false,
-            subnetType: SubnetType.PUBLIC
+            subnetType: SubnetType.ISOLATED
         },
+ 
     ]
 });
 
