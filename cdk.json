@@ -3,6 +3,21 @@
   "context": {
     "@aws-cdk/core:enableStackNameDuplicates": "true",
     "aws-cdk:enableDiffNoFail": "true",
-    "AZs": ["ap-notheast-2a","ap-northeast-2c"]
+    "@aws-cdk/core:stackRelativeExports": "true",
+    "AZs": ["ap-notheast-2a","ap-northeast-2c"],
+    "prj": "ATCL",
+    "stage": "DEV",
+    "DEV": {
+      "nat_gateways": 2
+    },
+    "SHARED": {
+      "nat_gateways": 1
+    },
+    "STAGE": {
+      "nat_gateways": 2
+    },
+    "PROD": {
+      "nat_gateways": 2
+    }
   }
 }

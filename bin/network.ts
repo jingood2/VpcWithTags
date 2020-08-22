@@ -8,9 +8,10 @@ import { customTags } from '../lib/custom_resources/mandatory_tags';
 import { VpcEndpointStack } from '../lib/vpc-endpoint-stack';
 
 const app = new cdk.App();
+
 const vpc = new VpcStack(app, 'VpcStack',{
             env: {
-                account: '533616270150', region: 'ap-northeast-2'
+                account: '234730403556', region: 'ap-northeast-2'
             },
             vpcProps: {
                 cidrBlock: '10.1.0.0/16'
@@ -77,9 +78,12 @@ new VpcEndpointStack(app,"VpcEndpointStack",{
 
 // add Trangit Gateway
 
-Tag.add(app,"costCenter", '73050');
-Tag.add(app,"Environment", 'DEV');
-Tag.add(app,"CreateAt", new Date().toUTCString());
+cdk.Tag.add(app, "cz-project", "ATCL" );
+cdk.Tag.add(app, "cz-owner", "ATCL CCOE");
+//cdk.Tag.add(app, "cz-stage", "prod");
+cdk.Tag.add(app, "cz-org", "Cloud Transformation Group" || ' ');
+cdk.Tag.add(app, "cz-appl", ' ');
+cdk.Tag.add(app, "cz-createdAt", new Date().toUTCString());
 
 
 
