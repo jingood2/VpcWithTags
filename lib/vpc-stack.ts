@@ -6,15 +6,23 @@ import { SubnetProps, SubnetType, CfnNatGateway, CfnInternetGateway, CfnVPC, Vpc
 var randomize = require('randomatic');
 var camelcase = require('camelcase');
 
+export interface MyEnvProps extends cdk.StackProps {
+  prj: string,
+  stage: string,
+  svcCode?: string
+}
 
 export interface customSubnetProps extends SubnetProps {
   subnetType: ec2.SubnetType,
-  serviceCode?: String
+  serviceCode?: String,
+  createNat?: boolean 
+  
 }
 
 export interface VPCStackProps extends cdk.StackProps {
   vpcProps : ec2.CfnVPCProps,
   subnetProps? : customSubnetProps[]
+  envProps? : MyEnvProps
 }
 
 export class VpcStack extends cdk.Stack {
@@ -41,16 +49,13 @@ export class VpcStack extends cdk.Stack {
       allowedValues: ['10.1.0.0/16','10.192.0.0/16','192.168.0.0/16']
     });
 
-    const prj: string = this.node.tryGetContext("prj");
-    const stage: string = this.node.tryGetContext("stage");
+    const prj: string = props.envProps?.prj || 'example' ;
+    const stage: string = props.envProps?.stage || 'dev';
     const nat_gateways: any = this.node.tryGetContext(stage);
-
- 
-   
 
     // The code that defines your stack goes here
     this.vpc = new ec2.CfnVPC(this,"VPC"+randomize('0A',6),{
-      cidrBlock: vpcCIDR.valueAsString,
+      cidrBlock: props.vpcProps.cidrBlock,
       enableDnsHostnames: true,
       enableDnsSupport: true,
       tags:[
@@ -104,21 +109,23 @@ export class VpcStack extends cdk.Stack {
 
           var _subId = this.createTagName(prj,stage,"EIP",this.tags,subProps);
 
-          var eip = new ec2.CfnEIP(this, "EIP"+randomize('0A',6),{
-            domain: "vpc",
-            tags:[{ "key": "Name", "value": this.createTagName(prj,stage,"EIP",this.tags,subProps)}]
-          });
+          if(subProps.createNat != false) {
+            var eip = new ec2.CfnEIP(this, "EIP"+randomize('0A',6),{
+              domain: "vpc",
+              tags:[{ "key": "Name", "value": this.createTagName(prj,stage,"EIP",this.tags,subProps)}]
+            });
 
-          eip.addDependsOn(this.igw);
+            eip.addDependsOn(this.igw);
 
-          // create NAT Gateway
-          this.natgw = new ec2.CfnNatGateway(this,"NatGW"+randomize('0A',6),{
-            allocationId: eip.attrAllocationId,
-            subnetId: _subnetId.ref,
-            tags: [
-              {"key": "Name","value": this.createTagName(prj,stage,"NATGW",this.tags,subProps)} 
-            ]
-          });
+            // create NAT Gateway
+            this.natgw = new ec2.CfnNatGateway(this,"NatGW"+randomize('0A',6),{
+              allocationId: eip.attrAllocationId,
+              subnetId: _subnetId.ref,
+              tags: [
+                {"key": "Name","value": this.createTagName(prj,stage,"NATGW",this.tags,subProps)} 
+              ]
+            });
+          }
 
           // RouteTable of Public Subnet
           var _publicRT = new ec2.CfnRouteTable(this,"RouteTable"+randomize('0A',6),{
@@ -189,7 +196,7 @@ export class VpcStack extends cdk.Stack {
 
   }
 
-  public createTagName(prj:string, stage:string, name:string, tags: TagManager, props?: customSubnetProps ) {
+  private createTagName(prj:string, stage:string, name:string, tags: TagManager, props?: customSubnetProps ) {
 
     var _result: string;
     var _tags: string[] = [];

@@ -9,9 +9,12 @@ import { VpcEndpointStack } from '../lib/vpc-endpoint-stack';
 
 const app = new cdk.App();
 
-const vpc = new VpcStack(app, 'VpcStack',{
+const devVpc = new VpcStack(app, 'DevVpcStack',{
             env: {
                 account: '234730403556', region: 'ap-northeast-2'
+            },
+            envProps: {
+                prj: 'ATCL', stage: 'DEV'
             },
             vpcProps: {
                 cidrBlock: '10.1.0.0/16'
@@ -29,7 +32,8 @@ const vpc = new VpcStack(app, 'VpcStack',{
                     cidrBlock: "10.1.21.0/24",
                     vpcId: "",
                     mapPublicIpOnLaunch: true,
-                    subnetType: SubnetType.PUBLIC
+                    subnetType: SubnetType.PUBLIC,
+                    createNat: false
                 },
                 {
                     availabilityZone: "ap-northeast-2a",
@@ -63,8 +67,65 @@ const vpc = new VpcStack(app, 'VpcStack',{
             ]
         });
 
+        const prodVpc = new VpcStack(app, 'ProdVpcStack',{
+            env: {
+                account: '234730403556', region: 'ap-northeast-2'
+            },
+            envProps: {
+                prj: 'ATCL', stage: 'PROD'
+            },
+            vpcProps: {
+                cidrBlock: '10.2.0.0/16'
+            },
+            subnetProps: [
+                {
+                    availabilityZone: "ap-northeast-2a",
+                    cidrBlock: "10.2.10.0/24",
+                    vpcId: "",
+                    mapPublicIpOnLaunch: true,
+                    subnetType: SubnetType.PUBLIC
+                },
+                {
+                    availabilityZone: "ap-northeast-2c",
+                    cidrBlock: "10.2.11.0/24",
+                    vpcId: "",
+                    mapPublicIpOnLaunch: true,
+                    subnetType: SubnetType.PUBLIC
+                },
+                {
+                    availabilityZone: "ap-northeast-2a",
+                    cidrBlock: "10.2.20.0/24",
+                    vpcId: "",
+                    mapPublicIpOnLaunch: false,
+                    subnetType: SubnetType.PRIVATE
+                },
+                {
+                    availabilityZone: "ap-northeast-2c",
+                    cidrBlock: "10.2.21.0/24",
+                    vpcId: "",
+                    mapPublicIpOnLaunch: false,
+                    subnetType: SubnetType.PRIVATE
+                },
+                {
+                    availabilityZone: "ap-northeast-2a",
+                    cidrBlock: "10.2.100.0/24",
+                    vpcId: "",
+                    mapPublicIpOnLaunch: false,
+                    subnetType: SubnetType.ISOLATED
+                },
+                {
+                    availabilityZone: "ap-northeast-2c",
+                    cidrBlock: "10.2.101.0/24",
+                    vpcId: "",
+                    mapPublicIpOnLaunch: false,
+                    subnetType: SubnetType.ISOLATED
+                },
+        
+            ]
+        });
+
 // add EndPoint 
-new VpcEndpointStack(app,"VpcEndpointStack",{ 
+/* new VpcEndpointStack(app,"VpcEndpointStack",{ 
         vpc: vpc.vpc, 
         vpcEndpoints:[
             { serviceName: "",
@@ -73,7 +134,7 @@ new VpcEndpointStack(app,"VpcEndpointStack",{
             }
         ]
     });
-// add VPN 
+ */// add VPN 
 
 
 // add Trangit Gateway
